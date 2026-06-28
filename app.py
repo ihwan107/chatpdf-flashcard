@@ -12,18 +12,24 @@ http = urllib3.PoolManager()
 
 # Fungsi Inti: Komunikasi REST API ke Google Gemini (Bypass Semua Library)
 def call_gemini_api(prompt_text, api_key):
+    # Menggunakan model Gemini 2.5 Flash yang aktif dan valid saat ini
     url = "https://googleapis.com"
-    headers = {'Content-Type': 'application/json', 'x-goog-api-key': api_key}
+    
+    headers = {
+        'Content-Type': 'application/json'
+    }
     payload = {"contents": [{"parts": [{"text": prompt_text}]}]}
     encoded_data = json.dumps(payload).encode('utf-8')
     
     try:
-        response = http.request('POST', f"{url}?key={api_key}", headers=headers, body=encoded_data, timeout=30.0)
+        complete_url = f"{url}?key={api_key}"
+        response = http.request('POST', complete_url, headers=headers, body=encoded_data, timeout=30.0)
+        
         if response.status == 200:
             response_json = json.loads(response.data.decode('utf-8'))
             return response_json['candidates'][0]['content']['parts'][0]['text']
         else:
-            return f"Google Server Error (Status {response.status})"
+            return f"Google Server Error (Status {response.status}): {response.data.decode('utf-8')}"
     except Exception as e:
         return f"Gagal terhubung ke internet: {str(e)}"
 
@@ -55,7 +61,6 @@ with st.sidebar:
     st.title("📂 Input Materi")
     st.subheader("Tempel Teks Anda")
     
-    # Mengganti tombol unggah file yang berat menjadi kotak teks yang super ringan
     user_text = st.text_area("Tempel (Paste) bab atau teks materi PDF Anda di sini:", height=250, placeholder="Salin teks dari dokumen Anda dan tempel di sini...")
     
     if user_text:
