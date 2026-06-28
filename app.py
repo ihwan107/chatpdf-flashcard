@@ -40,7 +40,7 @@ def generate_flashcards(text_input, api_key):
     Teks Materi:
     {text_input[:4000]}
     """
-    raw_ans = call_gemini_api(prompt, api_key)
+    raw_ans = call_gemini-2.5-flash_api(prompt, api_key)
     try:
         clean_ans = raw_ans.replace("```json", "").replace("```", "").strip()
         return json.loads(clean_ans)
@@ -92,7 +92,7 @@ with tab1:
             with st.spinner("AI sedang menyusun jawaban..."):
                 api_key = os.getenv("GOOGLE_API_KEY")
                 full_prompt = f"Konteks Materi:\n{user_text[:4000]}\n\nPertanyaan: {user_question}"
-                ai_response = call_gemini_api(full_prompt, api_key)
+                ai_response = call_gemini-2.5-flash_api(full_prompt, api_key)
         else:
             ai_response = "Silakan tempel teks materi Anda terlebih dahulu pada kotak di panel sebelah kiri."
             
