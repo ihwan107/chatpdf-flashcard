@@ -13,7 +13,7 @@ http = urllib3.PoolManager()
 # Fungsi Inti: Komunikasi REST API ke Google Gemini (Bypass Semua Library)
 def call_gemini_api(prompt_text, api_key):
     # Menggunakan model gemini-1.5-pro yang aktif dan valid saat ini
-    url = "htps://googleapis.com"
+    url = "https://googleapis.com"
     
     headers = {
         'Content-Type': 'application/json'
