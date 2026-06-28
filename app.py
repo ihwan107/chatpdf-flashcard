@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-import requests  # Menggunakan requests stabil untuk menembus proteksi token AQ
+import requests
 import json
 from dotenv import load_dotenv
 
@@ -8,12 +8,14 @@ load_dotenv()
 
 st.set_page_config(page_title="Flashcard & Chat Mandiri AI", page_icon="🃏", layout="wide")
 
-# Fungsi Inti: Komunikasi REST API langsung menggunakan Custom Header untuk token AQ
+# Menggunakan PoolManager internal session untuk kestabilan koneksi cloud
+session = requests.Session()
+
+# Fungsi Inti: Komunikasi REST API langsung menggunakan Custom Header & Model Gratis 1.5 Flash
 def call_gemini_api(prompt_text, api_key):
-    url = "https://googleapis.com"
+    # KUNCI UTAMA: Menggunakan gemini-1.5-flash agar lolos gratis tanpa billing account
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
     
-    # KUNCI SUKSES: Menyuntikkan kunci AQ langsung ke gerbang x-goog-api-key 
-    # Ini menghentikan Google memaksa otentikasi OAuth 2 yang memicu error 401
     headers = {
         'Content-Type': 'application/json',
         'x-goog-api-key': api_key
@@ -26,10 +28,11 @@ def call_gemini_api(prompt_text, api_key):
     }
     
     try:
-        response = requests.post(url, headers=headers, json=payload, timeout=30.0)
+        response = session.post(url, headers=headers, json=payload, timeout=30.0)
         
         if response.status_code == 200:
             response_json = response.json()
+            # Ekstrak data teks menggunakan pelacakan array JSON yang presisi dari Google
             return response_json['candidates'][0]['content']['parts'][0]['text']
         else:
             return f"Gagal terhubung dengan server Google (Status {response.status_code}): {response.text}"
