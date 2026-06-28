@@ -1,38 +1,53 @@
 import streamlit as st
 import os
+import requests  # Menggunakan requests stabil untuk menembus proteksi token AQ
 import json
-# Menggunakan SDK Resmi Google untuk otentikasi mutakhir token AQ
-from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
 
 st.set_page_config(page_title="Flashcard & Chat Mandiri AI", page_icon="🃏", layout="wide")
 
-# Fungsi Inti: Memanggil Gemini AI menggunakan SDK Resmi Google
+# Fungsi Inti: Komunikasi REST API langsung menggunakan Custom Header untuk token AQ
 def call_gemini_api(prompt_text, api_key):
+    url = "https://googleapis.com"
+    
+    # KUNCI SUKSES: Menyuntikkan kunci AQ langsung ke gerbang x-goog-api-key 
+    # Ini menghentikan Google memaksa otentikasi OAuth 2 yang memicu error 401
+    headers = {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': api_key
+    }
+    
+    payload = {
+        "contents": [{
+            "parts": [{"text": prompt_text}]
+        }]
+    }
+    
     try:
-        # Inisialisasi Client resmi Google dengan API Key Anda
-        client = genai.Client(api_key=api_key)
-        # Memanggil model standar paling stabil
-        response = client.models.generate_content(
-            model='gemini-1.5-flash',
-            contents=prompt_text,
-        )
-        return response.text
+        response = requests.post(url, headers=headers, json=payload, timeout=30.0)
+        
+        if response.status_code == 200:
+            response_json = response.json()
+            return response_json['candidates'][0]['content']['parts'][0]['text']
+        else:
+            return f"Gagal terhubung dengan server Google (Status {response.status_code}): {response.text}"
     except Exception as e:
-        return f"Gagal terhubung dengan Gemini AI: {str(e)}"
+        return f"Terjadi kesalahan koneksi internal: {str(e)}"
 
 # Fungsi Pembuat Flashcard Otomatis
 def generate_flashcards(text_input, api_key):
     prompt = f"""
     Berdasarkan teks materi berikut, buatkan 3 flashcard belajar yang paling penting dalam bentuk JSON Array murni.
-    Format hasil wajib berupa JSON seperti contoh ini:
+    Format hasil wajib berupa JSON seperti contoh ini (jangan sertakan teks lain atau markdown):
     [
       {{"pertanyaan": "Apa definisi X?", "jawaban": "Definisi X adalah Y"}},
-      {{"pertanyaan": "Kapan Z terjadi?", "jawaban": "Z terjadi pada tahun W"}}
+      {{"pertanyaan": "Kapan peristiwa Z terjadi?", "jawaban": "Peristiwa Z terjadi pada tahun W"}}
     ]
-    Teks Materi: {text_input[:4000]}
+    
+    Teks Materi:
+    {text_input[:4000]}
     """
     raw_ans = call_gemini_api(prompt, api_key)
     try:
@@ -48,14 +63,15 @@ def generate_flashcards(text_input, api_key):
 with st.sidebar:
     st.title("📂 Input Materi")
     st.subheader("Tempel Teks Anda")
-    user_text = st.text_area("Tempel (Paste) teks materi dokumen Anda di sini:", height=250)
+    
+    user_text = st.text_area("Tempel (Paste) bab atau teks materi PDF Anda di sini:", height=250, placeholder="Salin teks dari dokumen Anda dan tempel di sini...")
     
     if user_text:
         st.success("Teks materi berhasil disimpan di memori!")
         st.write("---")
         st.subheader("🃏 Fitur Belajar Aktif")
         if st.button("✨ Buat Flashcard Otomatis"):
-            with st.spinner("AI sedang merangkum..."):
+            with st.spinner("AI sedang merangkum kartu belajar..."):
                 api_key = os.getenv("GOOGLE_API_KEY")
                 st.session_state.flashcards = generate_flashcards(user_text, api_key)
                 st.session_state.current_card_index = 0
@@ -63,6 +79,7 @@ with st.sidebar:
 
 # --- AREA UTAMA ---
 st.title("📄 Aplikasi Asisten Belajar & Flashcard Mandiri")
+
 tab1, tab2 = st.tabs(["💬 Ruang Chat", "🃏 Ruang Flashcard"])
 
 with tab1:
@@ -80,7 +97,7 @@ with tab1:
         st.session_state.messages.append({"role": "user", "content": user_question})
         
         if user_text:
-            with st.spinner("AI sedang berpikir..."):
+            with st.spinner("AI sedang menyusun jawaban..."):
                 api_key = os.getenv("GOOGLE_API_KEY")
                 full_prompt = f"Konteks Materi:\n{user_text[:4000]}\n\nPertanyaan: {user_question}"
                 ai_response = call_gemini_api(full_prompt, api_key)
@@ -96,6 +113,7 @@ with tab2:
     if "flashcards" in st.session_state and st.session_state.flashcards:
         cards = st.session_state.flashcards
         idx = st.session_state.current_card_index
+        
         st.info(f"**KARTU KE-{idx + 1} DARI {len(cards)}**")
         st.markdown(f"### ❓ Pertanyaan:\n*{cards[idx]['pertanyaan']}*")
         st.write("---")
@@ -103,7 +121,7 @@ with tab2:
         if st.session_state.show_answer:
             st.success(f"### 💡 Jawaban:\n{cards[idx]['jawaban']}")
         else:
-            st.write("*(Pikirkan jawaban Anda di dalam hati...)*")
+            st.write("*(Pikirkan jawaban Anda di dalam hati terlebih dahulu...)*")
             
         col1, col2, col3 = st.columns(3)
         with col1:
